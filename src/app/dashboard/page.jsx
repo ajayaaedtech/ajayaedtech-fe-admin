@@ -1,55 +1,54 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import axios from "axios";
+import { useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { fetchAdminStats } from "../../redux/slices/adminStatsSlice"
 import { Card, CardContent } from "@mui/material";
-import { USER_COUNT_URL, COURSE_COUNT_URL } from "../../api/api";
 import { toast } from "react-toastify";
 
 export default function DashboardPage() {
-  const [userCount, setUserCount] = useState(0);
-  const [courseCount, setCourseCount] = useState(0);
+  const dispatch = useDispatch();
+
+  const {
+    totalUsers,
+    totalCourses,
+    totalEnrolledCourses,
+    loading,
+    error,
+  } = useSelector((state) => state.adminStats);
 
   useEffect(() => {
-    async function loadStats() {
-      try {
-        const userRes = await axios.get(USER_COUNT_URL);
-        const courseRes = await axios.get(COURSE_COUNT_URL);
-
-        setUserCount(userRes.data.total || 0);
-        setCourseCount(courseRes.data.total || 0);
-      } catch (error) {
-        toast.error("Failed to load dashboard stats — please try again.");
-        console.log("Dashboard API Error:", error);
-      }
-    }
-
-    loadStats();
-  }, []);
+    dispatch(fetchAdminStats())
+      .unwrap()
+      .catch(() => toast.error("Failed to load dashboard stats"));
+  }, [dispatch]);
 
   return (
     <div>
       <h1 className="text-3xl font-semibold mb-8">Dashboard</h1>
 
+      {loading && <p>Loading stats…</p>}
+      {error && <p className="text-red-600">{error}</p>}
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="shadow-lg">
           <CardContent>
             <h2 className="text-xl font-bold">Total Users</h2>
-            <p className="mt-2 text-gray-600">{userCount}</p>
+            <p className="mt-2 text-gray-600">{totalUsers}</p>
           </CardContent>
         </Card>
 
         <Card className="shadow-lg">
           <CardContent>
             <h2 className="text-xl font-bold">Total Courses</h2>
-            <p className="mt-2 text-gray-600">{courseCount}</p>
+            <p className="mt-2 text-gray-600">{totalCourses}</p>
           </CardContent>
         </Card>
 
         <Card className="shadow-lg">
           <CardContent>
-            <h2 className="text-xl font-bold">Revenue</h2>
-            <p className="mt-2 text-gray-600">₹2,40,000</p>
+            <h2 className="text-xl font-bold">Total Enrolled Courses</h2>
+            <p className="mt-2 text-gray-600">{totalEnrolledCourses}</p>
           </CardContent>
         </Card>
       </div>

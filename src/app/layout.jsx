@@ -28,7 +28,7 @@ export default function RootLayout({ children }) {
 
           <main className={`flex-1 p-10 ${hideSidebar ? "p-0" : ""}`}>
             {children}
-            <ToastContainer position="top-right" autoClose={3000} />
+            <ToastContainer position="top-center" autoClose={3000} />
           </main>
         </Provider>
       </body>
