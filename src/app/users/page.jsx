@@ -1,6 +1,5 @@
 "use client";
-
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchUsers } from "../../redux/slices/userSlice";
 
@@ -27,7 +26,8 @@ import {
   Button
 } from "@mui/material";
 
-import { Edit, Delete } from "@mui/icons-material";
+import { Edit, Delete, Search } from "@mui/icons-material";
+import CourseManagerModal from "../components/CourseManagerModal";
 
 export default function UsersPage() {
   const dispatch = useDispatch();
@@ -35,40 +35,72 @@ export default function UsersPage() {
     (state) => state.users
   );
 
+  const [searchTerm, setSearchTerm] = useState("");
+  const [searchedUsers, setSearchedUsers] = useState([]);
+
   const [openModal, setOpenModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState({});
 
-  // Load first page
+  const [courseModalOpen, setCourseModalOpen] = useState(false);
+  const [modalUser, setModalUser] = useState(null);
+
+  // Load first page initially
   useEffect(() => {
     dispatch(fetchUsers({ page: 1, limit: 10 }));
   }, [dispatch]);
 
-  // Pagination
+  // Pagination handler
   const handlePageChange = (_, value) => {
     dispatch(fetchUsers({ page: value, limit: 10 }));
   };
 
-  // OPEN MODAL
+  // ------------------------------
+  // Debounced Search Logic
+  // ------------------------------
+  const debounce = (func, delay) => {
+    let timeout;
+    return (...args) => {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => func(...args), delay);
+    };
+  };
+
+  const searchUsersAPI = async (value) => {
+    if (!value.trim()) {
+      setSearchedUsers([]);
+      return;
+    }
+
+    try {
+      const res = await axiosInstance.post("/api/admin/user-search", {
+        query: value
+      });
+      setSearchedUsers(res.data.users || []);
+    } catch (err) {
+      console.log("Search error:", err);
+    }
+  };
+
+  const handleSearch = useCallback(debounce(searchUsersAPI, 500), []);
+
+  // ------------------------------
+  // Edit modal handler
+  // ------------------------------
   const openEditModal = (user) => {
     setSelectedUser(user);
-    console.log("openboxuser", user)
     setOpenModal(true);
   };
 
-  // CLOSE MODAL
   const closeModal = () => {
     setSelectedUser({});
     setOpenModal(false);
   };
 
-  // UPDATE SELECTED USER FIELD
   const handleChange = (field, value) => {
     setSelectedUser((prev) => ({ ...prev, [field]: value }));
   };
 
-  // SAVE CHANGES → API CALL
   const saveModalChanges = async () => {
-    console.log("savemodel before", selectedUser)
     try {
       await axiosInstance.patch(
         `/api/admin/user-edit-full/${selectedUser._id}`,
@@ -84,7 +116,9 @@ export default function UsersPage() {
     }
   };
 
-  // DELETE USER
+  // ------------------------------
+  // Delete user
+  // ------------------------------
   const deleteUserFunc = async (id) => {
     try {
       await axiosInstance.delete(`/api/admin/user/${id}`);
@@ -96,9 +130,34 @@ export default function UsersPage() {
     }
   };
 
+  // ------------------------------
+  // Course Modal
+  // ------------------------------
+  const openCourseModal = (user) => {
+    setModalUser(user);
+    setCourseModalOpen(true);
+  };
+
+  const finalList = searchTerm.trim() ? searchedUsers : users;
+
   return (
     <div>
-      <h1 className="text-3xl font-semibold mb-8">Users</h1>
+      <h1 className="text-3xl font-semibold mb-6">Users</h1>
+
+      {/* Search Bar */}
+      <div className="mb-4 flex gap-3">
+        <TextField
+          fullWidth
+          label="Search by name, email or phone"
+          onChange={(e) => {
+            setSearchTerm(e.target.value);
+            handleSearch(e.target.value);
+          }}
+          InputProps={{
+            endAdornment: <Search />
+          }}
+        />
+      </div>
 
       <TableContainer component={Paper} className="shadow-xl">
         <Table>
@@ -108,6 +167,7 @@ export default function UsersPage() {
               <TableCell>Email</TableCell>
               <TableCell>Phone</TableCell>
               <TableCell>Role</TableCell>
+              <TableCell>Courses</TableCell>
               <TableCell>Status</TableCell>
               <TableCell>Profile Pic</TableCell>
               <TableCell>Actions</TableCell>
@@ -116,23 +176,22 @@ export default function UsersPage() {
 
           <TableBody>
             {!loading &&
-              users.map((u) => (
+              finalList.map((u) => (
                 <TableRow key={u._id}>
                   <TableCell>{u.name}</TableCell>
-
                   <TableCell>{u.email}</TableCell>
-
                   <TableCell>{u.phone}</TableCell>
-
                   <TableCell>{u.role}</TableCell>
 
-                  <TableCell>{u.status}</TableCell>
-
                   <TableCell>
-                    <img
-                      src={u.profilePic}
-                      className="h-10 w-10 rounded-full"
-                    />
+                    <Button variant="outlined" onClick={() => openCourseModal(u)}>
+                      Manage
+                    </Button>
+                  </TableCell>
+
+                  <TableCell>{u.status}</TableCell>
+                  <TableCell>
+                    <img src={u.profilePic} className="h-10 w-10 rounded-full" />
                   </TableCell>
 
                   <TableCell>
@@ -158,17 +217,19 @@ export default function UsersPage() {
         </Table>
       </TableContainer>
 
-      {/* PAGINATION */}
-      <div className="mt-6 flex justify-center">
-        <Pagination
-          count={totalPages}
-          page={page}
-          onChange={handlePageChange}
-          color="primary"
-        />
-      </div>
+      {/* Pagination */}
+      {!searchTerm && (
+        <div className="mt-6 flex justify-center">
+          <Pagination
+            count={totalPages}
+            page={page}
+            onChange={handlePageChange}
+            color="primary"
+          />
+        </div>
+      )}
 
-      {/* EDIT MODAL */}
+      {/* EDIT USER MODAL */}
       <Dialog open={openModal} onClose={closeModal} maxWidth="sm" fullWidth>
         <DialogTitle>Edit User</DialogTitle>
 
@@ -230,6 +291,13 @@ export default function UsersPage() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* COURSE MANAGER */}
+      <CourseManagerModal
+        open={courseModalOpen}
+        onClose={() => setCourseModalOpen(false)}
+        user={modalUser}
+      />
     </div>
   );
 }

@@ -1,9 +1,10 @@
 import axios from "axios";
 import Cookies from "js-cookie";
 import { toast } from "react-toastify";
+import {BASE_URL} from "../api/api"
 
 const axiosInstance = axios.create({
-  baseURL: "http://localhost:5001",
+  baseURL: BASE_URL,
 });
 
 // Automatically attach Bearer Token from Cookie

@@ -6,6 +6,7 @@ import Cookies from "js-cookie";
 import { toast } from "react-toastify";
 import { useRouter } from "next/navigation";
 import { TextField, Button, Card, CardContent } from "@mui/material";
+import {ADMINLOGIN} from "../../api/api"
 
 export default function LoginPage() {
   const router = useRouter();
@@ -35,7 +36,7 @@ export default function LoginPage() {
 
     try {
       const res = await axios.post(
-        "http://localhost:5001/api/admin/login",
+        ADMINLOGIN,
         form
       );
 
